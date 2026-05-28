@@ -494,11 +494,28 @@ footer {
   border-color: var(--texto);
   box-shadow: 0 0 0 2px white, 0 0 0 4px var(--texto);
 }
+.variant-dot.var-sold {
+  opacity: 0.3;
+  cursor: not-allowed;
+  position: relative;
+}
+.variant-dot.var-sold::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 60%; height: 2px;
+  background: var(--texto);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
 .variant-label {
   font-size: 0.75rem;
   color: var(--gris);
   font-weight: 400;
   margin-bottom: 2px;
+}
+.price.var-sold-price {
+  text-decoration: line-through;
+  color: var(--gris);
 }
 
 /* RESPONSIVE */

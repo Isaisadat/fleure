@@ -175,7 +175,8 @@
         document.getElementById('fieldDesc').value = product.description;
         document.getElementById('fieldImage').value = product.image;
         document.getElementById('fieldCategory').value = product.category || 'Anillos';
-        if (product.variants) product.variants.forEach(v => addVariant(v));
+        if (product.variants && product.variants.length) product.variants.forEach(v => addVariant(v));
+        else addVariant();
       } else {
         document.getElementById('modalTitle').textContent = 'Nuevo Producto';
         document.getElementById('editId').value = '';
@@ -184,6 +185,7 @@
         document.getElementById('fieldDesc').value = '';
         document.getElementById('fieldImage').value = '';
         document.getElementById('fieldCategory').value = 'Anillos';
+        addVariant();
       }
     }
 
@@ -269,6 +271,7 @@
         variants: getVariants()
       };
       if (!data.name || !data.price) { alert('Nombre y precio son obligatorios'); return; }
+      if (!data.variants.length) { alert('Agrega al menos una variante de color'); return; }
       try {
         if (id) {
           await fetch(`/api/products/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });

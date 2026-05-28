@@ -62,44 +62,83 @@
   <script>
     let allProducts = [];
 
+    function isVarSold(v) { return v.cantidad !== undefined && v.cantidad <= 0; }
+
     function variantHtml(variants, productId) {
-      if (!variants || variants.length < 2) return '';
+      if (!variants || !variants.length) return '';
       return `
         <div class="variants">
-          ${variants.map((v, i) => `
-            <button class="variant-dot ${i === 0 ? 'active' : ''}" style="background:${v.color}" data-pid="${productId}" data-idx="${i}" data-img="${v.image || ''}" data-vname="${v.name}" title="${v.name}"></button>
-          `).join('')}
+          ${variants.map((v, i) => {
+            const sold = isVarSold(v);
+            return `<button class="variant-dot ${i === 0 && !sold ? 'active' : ''} ${sold ? 'var-sold' : ''}" style="background:${v.color}" data-pid="${productId}" data-idx="${i}" data-img="${v.image || ''}" data-vname="${v.name}" data-cantidad="${v.cantidad !== undefined ? v.cantidad : 0}" title="${v.name}${sold ? ' (Agotado)' : ''}"></button>`;
+          }).join('')}
         </div>
       `;
     }
 
     function renderCard(p, currentIdx) {
-      const isSold = p.soldOut;
       const variants = p.variants || [];
-      const hasVariants = variants.length > 1;
+      if (!variants.length) variants.push({ name: 'Único', color: '#D4A0B0', image: p.image || '', cantidad: p.soldOut ? 0 : 1 });
       const activeIdx = currentIdx || 0;
-      const activeVar = hasVariants ? variants[activeIdx] : null;
+      let activeVar = variants[activeIdx] || variants[0];
+      if (activeVar && isVarSold(activeVar)) {
+        const inStock = variants.find(v => !isVarSold(v));
+        if (inStock) activeVar = inStock;
+      }
+      const allSold = p.soldOut || variants.every(isVarSold);
       const displayImg = activeVar?.image || p.image;
-      const displayName = activeVar && hasVariants ? `${p.name} — ${activeVar.name}` : p.name;
+      const displayName = `${p.name} — ${activeVar.name}`;
+      const activeSold = activeVar ? isVarSold(activeVar) : allSold;
       return `
-        <div class="product-card ${isSold ? 'sold-out' : ''}" data-pid="${p._id}">
+        <div class="product-card ${allSold ? 'sold-out' : ''}" data-pid="${p._id}">
           <div class="img-wrap">
             <img src="${displayImg}" alt="${p.name}" loading="lazy">
-            ${isSold ? '<div class="sold-out-badge">Agotado</div>' : ''}
+            ${activeSold ? '<div class="sold-out-badge">Agotado</div>' : ''}
           </div>
           <div class="info">
             <div class="category">${p.category || 'Joyería'}</div>
             <h3>${p.name}</h3>
-            ${activeVar && hasVariants ? `<div class="variant-label">${activeVar.name}</div>` : ''}
+            <div class="variant-label">${activeVar.name}${activeSold ? ' — Agotado' : ''}</div>
             ${variantHtml(variants, p._id)}
             <div class="desc">${p.description}</div>
-            <div class="price">
+            <div class="price ${activeSold ? 'var-sold-price' : ''}">
               $${p.price.toFixed(2)}
-              ${isSold ? '<span class="sold-label">— Agotado</span>' : ''}
+              ${activeSold ? '<span class="sold-label">— Agotado</span>' : ''}
             </div>
           </div>
         </div>
       `;
+    }
+
+    function updateCardForVariant(card, p, idx) {
+      const v = p.variants && p.variants.length ? p.variants[idx] : null;
+      const sold = v ? isVarSold(v) : p.soldOut;
+      const img = card.querySelector('.img-wrap img');
+      const badge = card.querySelector('.sold-out-badge');
+      const label = card.querySelector('.variant-label');
+      const price = card.querySelector('.price');
+      const soldLabel = price?.querySelector('.sold-label');
+
+      if (v && v.image) img.src = v.image;
+      else if (p.image) img.src = p.image;
+
+      if (label && v) label.textContent = v.name + (sold ? ' — Agotado' : '');
+
+      if (badge) badge.style.display = sold ? '' : 'none';
+
+      if (price) {
+        if (sold) {
+          price.classList.add('var-sold-price');
+          if (!soldLabel) price.insertAdjacentHTML('beforeend', '<span class="sold-label">— Agotado</span>');
+          else soldLabel.style.display = '';
+        } else {
+          price.classList.remove('var-sold-price');
+          if (soldLabel) soldLabel.style.display = 'none';
+        }
+      }
+
+      const allSold = p.soldOut || (p.variants && p.variants.length && p.variants.every(isVarSold));
+      card.classList.toggle('sold-out', allSold);
     }
 
     async function loadProducts() {
@@ -111,7 +150,15 @@
           grid.innerHTML = '<div class="empty">No hay productos disponibles por el momento.</div>';
           return;
         }
-        grid.innerHTML = allProducts.map(p => renderCard(p)).join('');
+        grid.innerHTML = allProducts.map(p => {
+          const variants = p.variants || [];
+          let firstIdx = 0;
+          if (variants.length) {
+            const inStock = variants.findIndex(v => !isVarSold(v));
+            if (inStock >= 0) firstIdx = inStock;
+          }
+          return renderCard(p, firstIdx);
+        }).join('');
       } catch (e) {
         document.getElementById('products').innerHTML = '<div class="empty">Error al cargar productos. Intenta de nuevo.</div>';
       }
@@ -119,7 +166,7 @@
 
     document.addEventListener('click', e => {
       const dot = e.target.closest('.variant-dot');
-      if (!dot) return;
+      if (!dot || dot.classList.contains('var-sold')) return;
       const pid = dot.dataset.pid;
       const idx = parseInt(dot.dataset.idx);
       const p = allProducts.find(x => x._id === pid);
@@ -127,10 +174,7 @@
       dot.closest('.variants').querySelectorAll('.variant-dot').forEach(d => d.classList.remove('active'));
       dot.classList.add('active');
       const card = dot.closest('.product-card');
-      const img = card.querySelector('.img-wrap img');
-      const label = card.querySelector('.variant-label');
-      if (dot.dataset.img) img.src = dot.dataset.img;
-      if (label) label.textContent = dot.dataset.vname;
+      updateCardForVariant(card, p, idx);
     });
 
     loadProducts();

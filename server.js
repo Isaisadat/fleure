@@ -73,10 +73,12 @@ app.use(async (req, res, next) => {
 function toFleure(p, usuarioNombre) {
   const variants = (p.variantes || []).map(v => ({
     name: v.color,
-    color: '#D4A0B0',
-    image: ''
+    color: v.colorHex || '#D4A0B0',
+    image: v.image || '',
+    cantidad: v.cantidad || 0
   }));
-  const soldOut = !p.activo || p.cantidad <= 0;
+  const totalStock = variants.length ? variants.reduce((s, v) => s + v.cantidad, 0) : p.cantidad;
+  const soldOut = !p.activo || totalStock <= 0;
   return {
     _id: p._id,
     name: p.nombre,
@@ -109,7 +111,12 @@ function toInventario(data) {
     notas: data.notas || ''
   };
   if (data.variants && data.variants.length) {
-    doc.variantes = data.variants.map(v => ({ color: v.name, cantidad: 1 }));
+    doc.variantes = data.variants.map(v => ({
+      color: v.name,
+      cantidad: v.cantidad !== undefined ? Number(v.cantidad) : 1,
+      colorHex: v.color || '#D4A0B0',
+      image: v.image || ''
+    }));
     doc.cantidad = doc.variantes.reduce((s, v) => s + v.cantidad, 0);
   }
   return doc;
@@ -163,7 +170,12 @@ app.put('/api/products/:id', async (req, res) => {
     if (precioCompra !== undefined) update.precioCompra = Number(precioCompra);
     if (notas !== undefined) update.notas = notas;
     if (variants !== undefined) {
-      update.variantes = variants.map(v => ({ color: v.name, cantidad: 1 }));
+      update.variantes = variants.map(v => ({
+        color: v.name,
+        cantidad: v.cantidad !== undefined ? Number(v.cantidad) : 1,
+        colorHex: v.color || '#D4A0B0',
+        image: v.image || ''
+      }));
     }
     await req.db.collection('products').updateOne(
       { _id: new ObjectId(req.params.id) },
