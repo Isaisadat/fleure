@@ -8,8 +8,8 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://innovalatinos:innovalatinos@cluster0.cinpcmb.mongodb.net/Fleure_DB?retryWrites=true&w=majority&appName=Cluster0';
-const DB_NAME = process.env.DB_NAME || 'Fleure_DB';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://innovalatinos:innovalatinos@cluster0.cinpcmb.mongodb.net/inventario_DB?retryWrites=true&w=majority&appName=Cluster0';
+const DB_NAME = process.env.DB_NAME || 'inventario_DB';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'ferisa02';
 
 const CLOUDINARY_URL = process.env.CLOUDINARY_URL || '';
@@ -58,7 +58,7 @@ async function connectDB() {
   const client = new MongoClient(MONGO_URI);
   await client.connect();
   db = client.db(DB_NAME);
-  console.log('Connected to MongoDB');
+  console.log('Conectado a inventario_DB');
 }
 
 app.use(async (req, res, next) => {
@@ -69,52 +69,121 @@ app.use(async (req, res, next) => {
   next();
 });
 
+// Mapear producto de Inventario a formato Fleure
+function toFleure(p, usuarioNombre) {
+  const variants = (p.variantes || []).map(v => ({
+    name: v.color,
+    color: '#D4A0B0',
+    image: ''
+  }));
+  const soldOut = !p.activo || p.cantidad <= 0;
+  return {
+    _id: p._id,
+    name: p.nombre,
+    price: p.precioVenta,
+    description: p.descripcion || '',
+    image: p.url || '',
+    category: p.categoria || 'Otros',
+    variants,
+    soldOut,
+    usuario: usuarioNombre || '',
+    createdAt: p.createdAt || p._id.getTimestamp()
+  };
+}
+
+// Mapear de formato Fleure a Inventario (para writes del admin)
+function toInventario(data) {
+  const doc = {
+    nombre: data.name,
+    proveedor: data.proveedor || 'Fleure',
+    cantidad: data.cantidad !== undefined ? Number(data.cantidad) : 1,
+    precioCompra: data.precioCompra || 0,
+    precioVenta: parseFloat(data.price),
+    descripcion: data.description || '',
+    categoria: data.category || 'Otros',
+    url: data.image || '',
+    color: '',
+    material: '',
+    variantes: [],
+    activo: data.soldOut !== undefined ? !data.soldOut : true,
+    notas: data.notas || ''
+  };
+  if (data.variants && data.variants.length) {
+    doc.variantes = data.variants.map(v => ({ color: v.name, cantidad: 1 }));
+    doc.cantidad = doc.variantes.reduce((s, v) => s + v.cantidad, 0);
+  }
+  return doc;
+}
+
+// Auth simple para admin
 app.post('/api/login', (req, res) => {
   const { password } = req.body;
   if (password === ADMIN_PASSWORD) return res.json({ success: true });
   res.status(401).json({ error: 'Contraseña incorrecta' });
 });
 
+// GET /api/products - leer de inventario_DB
 app.get('/api/products', async (req, res) => {
   try {
     const products = await req.db.collection('products').find().sort({ createdAt: -1 }).toArray();
-    res.json(products);
+    res.json(products.map(p => toFleure(p)));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// POST /api/products - crear en inventario_DB
 app.post('/api/products', async (req, res) => {
   try {
-    const { password, name, price, description, image, category, variants } = req.body;
+    const { password } = req.body;
     if (password !== ADMIN_PASSWORD) return res.status(401).json({ error: 'No autorizado' });
-    const doc = { name, price: parseFloat(price), description, image, category, variants: variants || [], soldOut: false, createdAt: new Date() };
+    const fleureUser = await req.db.collection('users').findOne({ rol: 'fleure' });
+    if (!fleureUser) return res.status(500).json({ error: 'No hay usuario fleure en inventario' });
+    const doc = toInventario(req.body);
+    doc.usuario = fleureUser._id;
+    doc.fechaCompra = new Date();
     const result = await req.db.collection('products').insertOne(doc);
-    res.json({ ...doc, _id: result.insertedId });
+    const created = await req.db.collection('products').findOne({ _id: result.insertedId });
+    res.json(toFleure(created, fleureUser.nombre));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// PUT /api/products/:id - actualizar en inventario_DB
 app.put('/api/products/:id', async (req, res) => {
   try {
-    const { password, soldOut, name, price, description, image, category, variants } = req.body;
+    const { password, soldOut, name, price, description, image, category, variants, proveedor, cantidad, precioCompra, notas } = req.body;
     if (password !== ADMIN_PASSWORD) return res.status(401).json({ error: 'No autorizado' });
     const update = {};
-    if (soldOut !== undefined) update.soldOut = soldOut;
-    if (name !== undefined) update.name = name;
-    if (price !== undefined) update.price = parseFloat(price);
-    if (description !== undefined) update.description = description;
-    if (image !== undefined) update.image = image;
-    if (category !== undefined) update.category = category;
-    if (variants !== undefined) update.variants = variants;
-    await req.db.collection('products').updateOne({ _id: new ObjectId(req.params.id) }, { $set: update });
+    if (soldOut !== undefined) update.activo = !soldOut;
+    if (name !== undefined) update.nombre = name;
+    if (price !== undefined) update.precioVenta = parseFloat(price);
+    if (description !== undefined) update.descripcion = description;
+    if (image !== undefined) update.url = image;
+    if (category !== undefined) update.categoria = category;
+    if (proveedor !== undefined) update.proveedor = proveedor;
+    if (cantidad !== undefined) update.cantidad = Number(cantidad);
+    if (precioCompra !== undefined) update.precioCompra = Number(precioCompra);
+    if (notas !== undefined) update.notas = notas;
+    if (variants !== undefined) {
+      update.variantes = variants.map(v => ({ color: v.name, cantidad: 1 }));
+    }
+    await req.db.collection('products').updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: update }
+    );
     const updated = await req.db.collection('products').findOne({ _id: new ObjectId(req.params.id) });
-    res.json(updated);
+    const fleureUser = await req.db.collection('users').findOne({ rol: 'fleure' });
+    res.json(toFleure(updated, fleureUser?.nombre));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// DELETE /api/products/:id - marcar como inactivo
 app.delete('/api/products/:id', async (req, res) => {
   try {
     const { password } = req.body;
     if (password !== ADMIN_PASSWORD) return res.status(401).json({ error: 'No autorizado' });
-    await req.db.collection('products').deleteOne({ _id: new ObjectId(req.params.id) });
+    await req.db.collection('products').updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: { activo: false } }
+    );
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -122,7 +191,7 @@ app.delete('/api/products/:id', async (req, res) => {
 async function start() {
   try {
     await connectDB();
-    app.listen(PORT, () => console.log(`Fleuré running on http://localhost:${PORT}`));
+    app.listen(PORT, () => console.log(`Fleuré corriendo en http://localhost:${PORT}`));
   } catch (e) { console.error('Failed:', e.message); process.exit(1); }
 }
 
