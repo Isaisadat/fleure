@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fleuré — Admin</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- LOGIN -->
+  <div id="loginScreen" class="login-wrap">
+    <div class="login-box">
+      <h1>Fleau<span style="color:var(--rosa-oscuro)">r</span>é</h1>
+      <div class="sub">Panel de Administración</div>
+      <input type="password" id="passwordInput" placeholder="Contraseña" autofocus>
+      <button onclick="login()">Ingresar</button>
+      <div id="loginError" class="login-error"></div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" style="display:none">
+    <div class="admin-nav">
+      <div class="container">
+        <a href="/" class="logo">
+          <img src="/logo.jpg" alt="Fleuré" class="logo-img">
+        </a>
+        <a href="/">Ver Tienda</a>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="admin-header">
+        <h2>Administrar Productos</h2>
+        <button class="btn btn-primary" onclick="openModal()">+ Nuevo Producto</button>
+      </div>
+
+      <div id="adminProducts">
+        <div class="loading" style="padding:40px 0;text-align:center;color:var(--gris)">Cargando...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL -->
+  <div id="modal" class="modal-overlay">
+    <div class="modal">
+      <h3 id="modalTitle">Nuevo Producto</h3>
+      <input type="hidden" id="editId">
+      <div class="form-group">
+        <label>Nombre del producto</label>
+        <input id="fieldName" placeholder="Ej: Anillo de Compromiso Eclat">
+      </div>
+      <div class="form-group">
+        <label>Precio ($)</label>
+        <input id="fieldPrice" type="number" step="0.01" placeholder="2850.00">
+      </div>
+      <div class="form-group">
+        <label>Descripción</label>
+        <textarea id="fieldDesc" placeholder="Describe la pieza..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Imagen</label>
+        <input id="fieldImage" placeholder="https://... o sube una imagen">
+        <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+          <input type="file" id="fileInput" accept="image/*" style="font-size:0.8rem;flex:1">
+          <button type="button" class="btn btn-sm btn-outline" onclick="uploadImage()">Subir</button>
+        </div>
+        <div id="uploadStatus" style="font-size:0.75rem;color:var(--gris);margin-top:4px"></div>
+      </div>
+      <div class="form-group">
+        <label>Categoría</label>
+        <select id="fieldCategory">
+          <option value="Anillos">Anillos</option>
+          <option value="Collares">Collares</option>
+          <option value="Pendientes">Pendientes</option>
+          <option value="Pulseras">Pulseras</option>
+          <option value="Relojes">Relojes</option>
+          <option value="Otros">Otros</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+        <button class="btn btn-primary" id="modalSaveBtn" onclick="saveProduct()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const PASSWORD = 'ferisa02';
+    let token = null;
+
+    function login() {
+      const pw = document.getElementById('passwordInput').value;
+      fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          token = pw;
+          document.getElementById('loginScreen').style.display = 'none';
+          document.getElementById('dashboard').style.display = 'block';
+          loadProducts();
+        } else {
+          document.getElementById('loginError').textContent = 'Contraseña incorrecta';
+        }
+      })
+      .catch(() => {
+        document.getElementById('loginError').textContent = 'Error de conexión';
+      });
+    }
+    document.getElementById('passwordInput').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+
+    async function loadProducts() {
+      try {
+        const res = await fetch('/api/products');
+        const products = await res.json();
+        const container = document.getElementById('adminProducts');
+        if (!products.length) {
+          container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gris)">No hay productos aún. ¡Agrega el primero!</div>';
+          return;
+        }
+        container.innerHTML = `
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Imagen</th>
+                <th>Nombre</th>
+                <th>Precio</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${products.map(p => `
+                <tr>
+                  <td><img src="${p.image}" alt="${p.name}"></td>
+                  <td><strong>${p.name}</strong><br><span style="font-size:0.7rem;color:var(--gris)">${p.category || ''}</span></td>
+                  <td>$${p.price.toFixed(2)}</td>
+                  <td>${p.soldOut ? '<span style="color:#e74c3c;font-weight:600">Agotado</span>' : '<span style="color:#27ae60;font-weight:600">Disponible</span>'}</td>
+                  <td class="actions">
+                    <button class="btn btn-sm btn-outline" onclick="editProduct('${p._id}')">Editar</button>
+                    <button class="btn btn-sm ${p.soldOut ? 'btn-primary' : 'btn-outline'}" onclick="toggleSold('${p._id}', ${p.soldOut})">${p.soldOut ? 'Disponible' : 'Agotar'}</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteProduct('${p._id}')">Eliminar</button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      } catch (e) {
+        document.getElementById('adminProducts').innerHTML = '<div style="text-align:center;padding:40px;color:red">Error al cargar productos.</div>';
+      }
+    }
+
+    function openModal(product) {
+      document.getElementById('modal').classList.add('active');
+      if (product) {
+        document.getElementById('modalTitle').textContent = 'Editar Producto';
+        document.getElementById('editId').value = product._id;
+        document.getElementById('fieldName').value = product.name;
+        document.getElementById('fieldPrice').value = product.price;
+        document.getElementById('fieldDesc').value = product.description;
+        document.getElementById('fieldImage').value = product.image;
+        document.getElementById('fieldCategory').value = product.category || 'Anillos';
+      } else {
+        document.getElementById('modalTitle').textContent = 'Nuevo Producto';
+        document.getElementById('editId').value = '';
+        document.getElementById('fieldName').value = '';
+        document.getElementById('fieldPrice').value = '';
+        document.getElementById('fieldDesc').value = '';
+        document.getElementById('fieldImage').value = '';
+        document.getElementById('fieldCategory').value = 'Anillos';
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('active');
+      document.getElementById('uploadStatus').textContent = '';
+    }
+
+    async function uploadImage() {
+      const file = document.getElementById('fileInput').files[0];
+      if (!file) { alert('Selecciona una imagen primero'); return; }
+      const status = document.getElementById('uploadStatus');
+      status.textContent = 'Subiendo...';
+      const form = new FormData();
+      form.append('image', file);
+      form.append('password', token);
+      try {
+        const res = await fetch('/api/upload', { method: 'POST', body: form });
+        const data = await res.json();
+        if (data.url) {
+          document.getElementById('fieldImage').value = data.url;
+          status.textContent = 'Listo';
+        } else {
+          status.textContent = 'Error al subir';
+        }
+      } catch (e) {
+        status.textContent = 'Error de conexión';
+      }
+    }
+
+    async function saveProduct() {
+      const id = document.getElementById('editId').value;
+      const data = {
+        password: token,
+        name: document.getElementById('fieldName').value.trim(),
+        price: document.getElementById('fieldPrice').value,
+        description: document.getElementById('fieldDesc').value.trim(),
+        image: document.getElementById('fieldImage').value.trim(),
+        category: document.getElementById('fieldCategory').value
+      };
+      if (!data.name || !data.price) { alert('Nombre y precio son obligatorios'); return; }
+      try {
+        if (id) {
+          await fetch(`/api/products/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        } else {
+          await fetch('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        }
+        closeModal();
+        loadProducts();
+      } catch (e) { alert('Error al guardar'); }
+    }
+
+    function editProduct(id) {
+      fetch('/api/products')
+        .then(r => r.json())
+        .then(products => {
+          const p = products.find(x => x._id === id);
+          if (p) openModal(p);
+        });
+    }
+
+    async function toggleSold(id, current) {
+      try {
+        await fetch(`/api/products/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: token, soldOut: !current })
+        });
+        loadProducts();
+      } catch (e) { alert('Error al actualizar'); }
+    }
+
+    async function deleteProduct(id) {
+      if (!confirm('¿Eliminar este producto permanentemente?')) return;
+      try {
+        await fetch(`/api/products/${id}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: token })
+        });
+        loadProducts();
+      } catch (e) { alert('Error al eliminar'); }
+    }
+
+    document.getElementById('modal').addEventListener('click', e => {
+      if (e.target === document.getElementById('modal')) closeModal();
+    });
+  </script>
+</body>
+</html>
