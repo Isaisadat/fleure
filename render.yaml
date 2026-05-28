@@ -7,9 +7,5 @@ services:
     envVars:
       - key: MONGO_URI
         value: mongodb+srv://innovalatinos:innovalatinos@cluster0.cinpcmb.mongodb.net/Fleure_DB?retryWrites=true&w=majority&appName=Cluster0
-      - key: CLOUDINARY_CLOUD
-        value: dhjnvfvtu
-      - key: CLOUDINARY_KEY
-        value: 448226484478941
-      - key: CLOUDINARY_SECRET
-        value: iD8eYaMGS2Q5b_kJgj6YMmNLSK0
+      - key: CLOUDINARY_URL
+        value: cloudinary://645926898591627:u-Nr1A347QcTYNLY5Y1LWWxJ0jk@dhjnvfvtu

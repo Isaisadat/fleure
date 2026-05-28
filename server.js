@@ -12,19 +12,12 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://innovalatinos:innovala
 const DB_NAME = process.env.DB_NAME || 'Fleure_DB';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'ferisa02';
 
-const CLOUDINARY_CLOUD = process.env.CLOUDINARY_CLOUD || '';
-const CLOUDINARY_KEY = process.env.CLOUDINARY_KEY || '';
-const CLOUDINARY_SECRET = process.env.CLOUDINARY_SECRET || '';
-
-const useCloudinary = CLOUDINARY_CLOUD && CLOUDINARY_KEY && CLOUDINARY_SECRET;
+const CLOUDINARY_URL = process.env.CLOUDINARY_URL || '';
+const useCloudinary = !!CLOUDINARY_URL;
 
 let upload;
 if (useCloudinary) {
-  cloudinary.config({
-    cloud_name: CLOUDINARY_CLOUD,
-    api_key: CLOUDINARY_KEY,
-    api_secret: CLOUDINARY_SECRET,
-  });
+  cloudinary.config({ cloudinary_url: CLOUDINARY_URL });
   const storage = new CloudinaryStorage({
     cloudinary,
     params: { folder: 'fleure', allowed_formats: ['jpg','jpeg','png','webp','gif'] }
@@ -91,9 +84,9 @@ app.get('/api/products', async (req, res) => {
 
 app.post('/api/products', async (req, res) => {
   try {
-    const { password, name, price, description, image, category } = req.body;
+    const { password, name, price, description, image, category, variants } = req.body;
     if (password !== ADMIN_PASSWORD) return res.status(401).json({ error: 'No autorizado' });
-    const doc = { name, price: parseFloat(price), description, image, category, soldOut: false, createdAt: new Date() };
+    const doc = { name, price: parseFloat(price), description, image, category, variants: variants || [], soldOut: false, createdAt: new Date() };
     const result = await req.db.collection('products').insertOne(doc);
     res.json({ ...doc, _id: result.insertedId });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -101,7 +94,7 @@ app.post('/api/products', async (req, res) => {
 
 app.put('/api/products/:id', async (req, res) => {
   try {
-    const { password, soldOut, name, price, description, image, category } = req.body;
+    const { password, soldOut, name, price, description, image, category, variants } = req.body;
     if (password !== ADMIN_PASSWORD) return res.status(401).json({ error: 'No autorizado' });
     const update = {};
     if (soldOut !== undefined) update.soldOut = soldOut;
@@ -110,6 +103,7 @@ app.put('/api/products/:id', async (req, res) => {
     if (description !== undefined) update.description = description;
     if (image !== undefined) update.image = image;
     if (category !== undefined) update.category = category;
+    if (variants !== undefined) update.variants = variants;
     await req.db.collection('products').updateOne({ _id: new ObjectId(req.params.id) }, { $set: update });
     const updated = await req.db.collection('products').findOne({ _id: new ObjectId(req.params.id) });
     res.json(updated);

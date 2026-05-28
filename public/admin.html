@@ -79,6 +79,13 @@
           <option value="Otros">Otros</option>
         </select>
       </div>
+
+      <div class="form-group">
+        <label>Variantes de color</label>
+        <div id="variantsContainer" style="display:flex;flex-direction:column;gap:10px"></div>
+        <button type="button" class="btn btn-sm btn-outline" onclick="addVariant()" style="margin-top:8px">+ Agregar variante</button>
+      </div>
+
       <div class="modal-actions">
         <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
         <button class="btn btn-primary" id="modalSaveBtn" onclick="saveProduct()">Guardar</button>
@@ -158,6 +165,8 @@
 
     function openModal(product) {
       document.getElementById('modal').classList.add('active');
+      const container = document.getElementById('variantsContainer');
+      container.innerHTML = '';
       if (product) {
         document.getElementById('modalTitle').textContent = 'Editar Producto';
         document.getElementById('editId').value = product._id;
@@ -166,6 +175,7 @@
         document.getElementById('fieldDesc').value = product.description;
         document.getElementById('fieldImage').value = product.image;
         document.getElementById('fieldCategory').value = product.category || 'Anillos';
+        if (product.variants) product.variants.forEach(v => addVariant(v));
       } else {
         document.getElementById('modalTitle').textContent = 'Nuevo Producto';
         document.getElementById('editId').value = '';
@@ -204,6 +214,49 @@
       }
     }
 
+    function getVariants() {
+      const rows = document.querySelectorAll('#variantsContainer .variant-row');
+      return Array.from(rows).map(row => ({
+        name: row.querySelector('.v-name').value,
+        color: row.querySelector('.v-color').value,
+        image: row.querySelector('.v-image').value
+      })).filter(v => v.name);
+    }
+
+    function addVariant(data) {
+      const container = document.getElementById('variantsContainer');
+      const idx = container.children.length;
+      const row = document.createElement('div');
+      row.className = 'variant-row';
+      row.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px;background:var(--rosa-polvo);border-radius:10px';
+      row.innerHTML = `
+        <input class="v-name" placeholder="Nombre" value="${data?.name || ''}" style="flex:1;min-width:80px;padding:8px 10px;border:1px solid var(--gris-claro);border-radius:8px;font-size:0.8rem">
+        <input class="v-color" type="color" value="${data?.color || '#D4A0B0'}" style="width:36px;height:36px;border:none;border-radius:6px;cursor:pointer;padding:0">
+        <div style="display:flex;gap:4px;flex:1;min-width:140px">
+          <input class="v-image" placeholder="URL imagen" value="${data?.image || ''}" style="flex:1;padding:8px 10px;border:1px solid var(--gris-claro);border-radius:8px;font-size:0.8rem">
+          <input type="file" accept="image/*" style="display:none" onchange="uploadVariantImage(this, ${idx})">
+          <button class="btn btn-sm btn-outline" onclick="this.previousElementSibling.click()" style="white-space:nowrap">Subir</button>
+        </div>
+        <button class="btn btn-sm btn-danger" onclick="this.closest('.variant-row').remove()" style="padding:4px 8px">&times;</button>
+      `;
+      container.appendChild(row);
+    }
+
+    async function uploadVariantImage(input, idx) {
+      const file = input.files[0];
+      if (!file) return;
+      const form = new FormData();
+      form.append('image', file);
+      form.append('password', token);
+      input.disabled = true;
+      try {
+        const res = await fetch('/api/upload', { method: 'POST', body: form });
+        const data = await res.json();
+        if (data.url) input.closest('.variant-row').querySelector('.v-image').value = data.url;
+      } catch (e) { alert('Error al subir'); }
+      input.disabled = false;
+    }
+
     async function saveProduct() {
       const id = document.getElementById('editId').value;
       const data = {
@@ -212,7 +265,8 @@
         price: document.getElementById('fieldPrice').value,
         description: document.getElementById('fieldDesc').value.trim(),
         image: document.getElementById('fieldImage').value.trim(),
-        category: document.getElementById('fieldCategory').value
+        category: document.getElementById('fieldCategory').value,
+        variants: getVariants()
       };
       if (!data.name || !data.price) { alert('Nombre y precio son obligatorios'); return; }
       try {

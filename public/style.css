@@ -470,6 +470,37 @@ footer {
 }
 .modal .modal-actions button { flex: 1; }
 
+/* VARIANTS */
+.variants {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+  flex-wrap: wrap;
+}
+.variant-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--gris-claro);
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s;
+  outline: none;
+}
+.variant-dot:hover {
+  transform: scale(1.2);
+}
+.variant-dot.active {
+  border-color: var(--texto);
+  box-shadow: 0 0 0 2px white, 0 0 0 4px var(--texto);
+}
+.variant-label {
+  font-size: 0.75rem;
+  color: var(--gris);
+  font-weight: 400;
+  margin-bottom: 2px;
+}
+
 /* RESPONSIVE */
 @media (max-width: 768px) {
   .hero h1 { font-size: 2.2rem; }

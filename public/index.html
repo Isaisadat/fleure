@@ -60,39 +60,79 @@
   </footer>
 
   <script>
+    let allProducts = [];
+
+    function variantHtml(variants, productId) {
+      if (!variants || variants.length < 2) return '';
+      return `
+        <div class="variants">
+          ${variants.map((v, i) => `
+            <button class="variant-dot ${i === 0 ? 'active' : ''}" style="background:${v.color}" data-pid="${productId}" data-idx="${i}" data-img="${v.image || ''}" data-vname="${v.name}" title="${v.name}"></button>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function renderCard(p, currentIdx) {
+      const isSold = p.soldOut;
+      const variants = p.variants || [];
+      const hasVariants = variants.length > 1;
+      const activeIdx = currentIdx || 0;
+      const activeVar = hasVariants ? variants[activeIdx] : null;
+      const displayImg = activeVar?.image || p.image;
+      const displayName = activeVar && hasVariants ? `${p.name} — ${activeVar.name}` : p.name;
+      return `
+        <div class="product-card ${isSold ? 'sold-out' : ''}" data-pid="${p._id}">
+          <div class="img-wrap">
+            <img src="${displayImg}" alt="${p.name}" loading="lazy">
+            ${isSold ? '<div class="sold-out-badge">Agotado</div>' : ''}
+          </div>
+          <div class="info">
+            <div class="category">${p.category || 'Joyería'}</div>
+            <h3>${p.name}</h3>
+            ${activeVar && hasVariants ? `<div class="variant-label">${activeVar.name}</div>` : ''}
+            ${variantHtml(variants, p._id)}
+            <div class="desc">${p.description}</div>
+            <div class="price">
+              $${p.price.toFixed(2)}
+              ${isSold ? '<span class="sold-label">— Agotado</span>' : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     async function loadProducts() {
       try {
         const res = await fetch('/api/products');
-        const products = await res.json();
+        allProducts = await res.json();
         const grid = document.getElementById('products');
-        if (!products.length) {
+        if (!allProducts.length) {
           grid.innerHTML = '<div class="empty">No hay productos disponibles por el momento.</div>';
           return;
         }
-        grid.innerHTML = products.map(p => {
-          const isSold = p.soldOut;
-          return `
-            <div class="product-card ${isSold ? 'sold-out' : ''}">
-              <div class="img-wrap">
-                <img src="${p.image}" alt="${p.name}" loading="lazy">
-                ${isSold ? '<div class="sold-out-badge">Agotado</div>' : ''}
-              </div>
-              <div class="info">
-                <div class="category">${p.category || 'Joyería'}</div>
-                <h3>${p.name}</h3>
-                <div class="desc">${p.description}</div>
-                <div class="price">
-                  $${p.price.toFixed(2)}
-                  ${isSold ? '<span class="sold-label">— Agotado</span>' : ''}
-                </div>
-              </div>
-            </div>
-          `;
-        }).join('');
+        grid.innerHTML = allProducts.map(p => renderCard(p)).join('');
       } catch (e) {
         document.getElementById('products').innerHTML = '<div class="empty">Error al cargar productos. Intenta de nuevo.</div>';
       }
     }
+
+    document.addEventListener('click', e => {
+      const dot = e.target.closest('.variant-dot');
+      if (!dot) return;
+      const pid = dot.dataset.pid;
+      const idx = parseInt(dot.dataset.idx);
+      const p = allProducts.find(x => x._id === pid);
+      if (!p) return;
+      dot.closest('.variants').querySelectorAll('.variant-dot').forEach(d => d.classList.remove('active'));
+      dot.classList.add('active');
+      const card = dot.closest('.product-card');
+      const img = card.querySelector('.img-wrap img');
+      const label = card.querySelector('.variant-label');
+      if (dot.dataset.img) img.src = dot.dataset.img;
+      if (label) label.textContent = dot.dataset.vname;
+    });
+
     loadProducts();
   </script>
 </body>
