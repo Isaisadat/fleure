@@ -553,6 +553,7 @@ footer {
   display: grid;
   grid-template-columns: 1fr 1fr;
   min-height: 400px;
+  height: 100%;
 }
 .detail-img {
   position: relative;
@@ -637,7 +638,7 @@ footer {
   align-items: center;
   justify-content: center;
   box-shadow: 0 4px 20px rgba(37, 211, 102, 0.4);
-  z-index: 300;
+  z-index: 150;
   transition: all 0.3s;
   text-decoration: none;
 }
@@ -664,15 +665,15 @@ footer {
   .admin-table .actions { flex-direction: column; gap: 4px; }
   .btn-sm { padding: 4px 10px; font-size: 0.6rem; }
   .modal { margin: 16px; padding: 24px; max-height: 90vh; }
-  .product-detail-modal { max-width: 100%; margin: 0; border-radius: 0; min-height: 100dvh; max-height: none; }
-  .detail-layout { grid-template-columns: 1fr; }
-  .detail-img { min-height: 260px; }
+  .product-detail-modal { max-width: 100%; margin: 0; border-radius: 0; height: 100dvh; max-height: none; }
+  .detail-layout { grid-template-columns: 1fr; height: 100%; }
+  .detail-img { min-height: 260px; max-height: 40vh; }
   .detail-info { padding: 24px; }
   .detail-name { font-size: 1.5rem; }
   .detail-price { font-size: 1.6rem; }
   .whatsapp-float { width: 48px; height: 48px; bottom: 16px; right: 16px; }
   .whatsapp-float svg { width: 22px; height: 22px; }
-  .modal-overlay.mobile-detail { align-items: flex-start; overflow-y: auto; padding: 0; }
+  .modal-overlay.mobile-detail { align-items: flex-start; padding: 0; }
 }
 
 @media (max-width: 480px) {
