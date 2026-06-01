@@ -428,9 +428,12 @@ footer {
   padding: 40px;
   width: 100%;
   max-width: 500px;
-  max-height: 90vh;
+  max-height: 85vh;
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+}
+.product-detail-modal {
+  max-height: 90vh;
 }
 .modal h3 {
   font-size: 1.6rem;
@@ -654,19 +657,21 @@ footer {
   .product-card .info .price { font-size: 1.3rem; }
   .section-title { font-size: 1.6rem; margin-top: 30px; }
   .nav-links a { font-size: 0.7rem; }
-  .logo { font-size: 1.4rem; }
+  .logo-img { height: 75px; }
   .admin-table { font-size: 0.75rem; }
   .admin-table td, .admin-table th { padding: 10px 8px; }
   .admin-table td img { width: 36px; height: 36px; }
   .admin-table .actions { flex-direction: column; gap: 4px; }
   .btn-sm { padding: 4px 10px; font-size: 0.6rem; }
-  .modal { margin: 16px; padding: 24px; }
-  .detail-layout { grid-template-columns: 1fr; }
-  .detail-img { min-height: 280px; }
+  .modal { margin: 16px; padding: 24px; max-height: 90vh; }
+  .product-detail-modal { max-width: 100%; margin: 0; border-radius: 0; min-height: 100vh; max-height: 100vh; }
+  .detail-layout { grid-template-columns: 1fr; overflow-y: auto; }
+  .detail-img { min-height: 260px; }
   .detail-info { padding: 24px; }
   .detail-name { font-size: 1.5rem; }
   .detail-price { font-size: 1.6rem; }
-  .product-detail-modal { max-width: 100%; margin: 0; border-radius: 0; min-height: 100vh; }
+  .whatsapp-float { width: 48px; height: 48px; bottom: 16px; right: 16px; }
+  .whatsapp-float svg { width: 22px; height: 22px; }
 }
 
 @media (max-width: 480px) {
@@ -675,4 +680,7 @@ footer {
   .hero h1 { font-size: 1.8rem; }
   .navbar { padding: 10px 0; }
   .nav-links { gap: 14px; }
+  .logo-img { height: 60px; }
+  .whatsapp-float { width: 42px; height: 42px; bottom: 12px; right: 12px; }
+  .whatsapp-float svg { width: 20px; height: 20px; }
 }
