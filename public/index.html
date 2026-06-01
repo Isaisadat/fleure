@@ -212,7 +212,10 @@
       const variants = p.variants || [];
       const modal = document.getElementById('productModal');
       modal.classList.add('active');
-      if (window.innerWidth <= 768) modal.classList.add('mobile-detail');
+      if (window.innerWidth <= 768) {
+        modal.classList.add('mobile-detail');
+        document.documentElement.style.overflow = 'hidden';
+      }
       document.body.style.overflow = 'hidden';
       const content = document.getElementById('detailContent');
       const firstIdx = variants.length ? variants.findIndex(v => !isVarSold(v)) : -1;
@@ -254,6 +257,7 @@
       const modal = document.getElementById('productModal');
       modal.classList.remove('active', 'mobile-detail');
       document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
     }
 
     document.getElementById('productModal').addEventListener('click', e => {

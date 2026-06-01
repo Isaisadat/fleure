@@ -666,9 +666,9 @@ footer {
   .btn-sm { padding: 4px 10px; font-size: 0.6rem; }
   .modal { margin: 16px; padding: 24px; max-height: 90vh; }
   .product-detail-modal { max-width: 100%; margin: 0; border-radius: 0; height: 100dvh; max-height: none; }
-  .detail-layout { grid-template-columns: 1fr; height: 100%; }
-  .detail-img { min-height: 260px; max-height: 40vh; }
-  .detail-info { padding: 24px; }
+  .detail-layout { grid-template-columns: 1fr; height: 100%; min-height: auto; display: flex; flex-direction: column; }
+  .detail-img { min-height: 0; max-height: 50vh; height: 40vh; flex-shrink: 0; }
+  .detail-info { padding: 24px; justify-content: flex-start; flex: 1; overflow-y: auto; min-height: 0; }
   .detail-name { font-size: 1.5rem; }
   .detail-price { font-size: 1.6rem; }
   .whatsapp-float { width: 48px; height: 48px; bottom: 16px; right: 16px; }
